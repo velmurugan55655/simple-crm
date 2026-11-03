@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#1d4ed8">
+<title>Simple CRM</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#fff; --text:#111827; --muted:#6b7280; --line:#e5e7eb;
+    --primary:#1d4ed8; --primary-soft:#e0e7ff;
+    --new:#2563eb; --int:#7c3aed; --fol:#d97706; --won:#059669; --lost:#dc2626;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px}
+  header{position:sticky;top:0;z-index:5;background:var(--primary);color:#fff;padding:calc(env(safe-area-inset-top) + 14px) 16px 14px;display:flex;align-items:center;justify-content:space-between}
+  header h1{margin:0;font-size:19px;font-weight:600}
+  header button{background:rgba(255,255,255,.18);color:#fff;border:0;border-radius:8px;padding:7px 10px;font-size:13px}
+  main{padding:14px 14px 96px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .stat{background:var(--card);border-radius:12px;padding:10px;text-align:center;border:1px solid var(--line)}
+  .stat b{display:block;font-size:20px}
+  .stat span{font-size:12px;color:var(--muted)}
+  .section-title{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:16px 2px 8px}
+  .search{display:flex;gap:8px;margin-bottom:10px}
+  .search input{flex:1}
+  input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font:inherit;color:var(--text)}
+  textarea{resize:vertical;min-height:70px}
+  .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px}
+  .chip{white-space:nowrap;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:13px}
+  .chip.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .name{font-weight:600;font-size:16px}
+  .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .badge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;color:#fff;white-space:nowrap}
+  .b-New{background:var(--new)} .b-Interested{background:var(--int)} .b-Follow-up{background:var(--fol)} .b-Won{background:var(--won)} .b-Lost{background:var(--lost)}
+  .due{color:var(--lost);font-weight:600}
+  .actions{display:flex;gap:8px;margin-top:10px}
+  .btn{flex:1;border:0;border-radius:10px;padding:10px;font:inherit;font-weight:600;font-size:14px;text-align:center;text-decoration:none;display:inline-block}
+  .btn.primary{background:var(--primary);color:#fff}
+  .btn.call{background:#dbeafe;color:#1e40af}
+  .btn.wa{background:#dcfce7;color:#166534}
+  .btn.ghost{background:#f3f4f6;color:var(--text)}
+  .btn.danger{background:#fee2e2;color:#991b1b}
+  .fab{position:fixed;right:18px;bottom:calc(env(safe-area-inset-bottom) + 18px);width:58px;height:58px;border-radius:50%;border:0;background:var(--primary);color:#fff;font-size:30px;box-shadow:0 6px 18px rgba(29,78,216,.35)}
+  .empty{text-align:center;color:var(--muted);padding:30px 10px}
+  .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;z-index:20}
+  .sheet{position:fixed;left:0;right:0;bottom:0;max-height:92vh;overflow:auto;background:var(--bg);border-radius:18px 18px 0 0;padding:16px 16px calc(env(safe-area-inset-bottom) + 18px);z-index:21;display:none}
+  .sheet.open,.sheet-bg.open{display:block}
+  .sheet h2{margin:0 0 12px;font-size:18px}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .note{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:14px}
+  .note small{display:block;color:var(--muted);font-size:11px;margin-bottom:2px}
+  .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#111827;color:#fff;padding:9px 16px;border-radius:999px;font-size:13px;opacity:0;transition:opacity .2s;z-index:30;pointer-events:none}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>Simple CRM</h1>
+  <button id="backupBtn">Backup</button>
+</header>
+
+<main>
+  <div class="stats" id="stats"></div>
+
+  <div id="todayWrap"></div>
+
+  <div class="section-title">Customers</div>
+  <div class="search"><input id="q" type="search" placeholder="Search name, phone, company, city"></div>
+  <div class="chips" id="filters"></div>
+  <div id="list"></div>
+</main>
+
+<button class="fab" id="addBtn" aria-label="Add customer">+</button>
+
+<div class="sheet-bg" id="sheetBg"></div>
+
+<!-- Add / Edit customer -->
+<div class="sheet" id="formSheet">
+  <h2 id="formTitle">Add customer</h2>
+  <form id="custForm">
+    <input type="hidden" name="id">
+    <label>Name *</label><input name="name" required>
+    <label>Phone *</label><input name="phone" type="tel" inputmode="tel" required>
+    <div class="grid2">
+      <div><label>Company</label><input name="company"></div>
+      <div><label>City</label><input name="city"></div>
+    </div>
+    <div class="grid2">
+      <div><label>Status</label><select name="status"></select></div>
+      <div><label>Source</label>
+        <select name="source">
+          <option>Walk-in</option><option>Phone</option><option>WhatsApp</option>
+          <option>Facebook</option><option>Instagram</option><option>Website</option>
+          <option>Reference</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid2">
+      <div><label>Follow-up date</label><input name="followup" type="date"></div>
+      <div><label>Deal value (₹)</label><input name="value" type="number" inputmode="numeric" min="0"></div>
+    </div>
+    <label>Requirement / notes</label><textarea name="requirement"></textarea>
+    <div class="actions">
+      <button type="button" class="btn ghost" data-close>Cancel</button>
+      <button type="submit" class="btn primary">Save</button>
+    </div>
+  </form>
+</div>
+
+<!-- Customer detail -->
+<div class="sheet" id="detailSheet"></div>
+
+<!-- Backup -->
+<div class="sheet" id="backupSheet">
+  <h2>Backup &amp; restore</h2>
+  <p class="sub">Data is stored only on this phone. Copy the backup and keep it safe (WhatsApp to yourself, email, notes).</p>
+  <div class="actions">
+    <button class="btn primary" id="copyBackup">Copy backup</button>
+    <button class="btn ghost" id="copyCsv">Copy as CSV</button>
+  </div>
+  <label>Restore — paste backup text here</label>
+  <textarea id="restoreText" rows="5" placeholder='{"customers":[...]}'></textarea>
+  <div class="actions">
+    <button class="btn ghost" data-close>Close</button>
+    <button class="btn danger" id="restoreBtn">Restore</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const KEY = 'simplecrm_v1';
+  const STATUSES = ['New','Interested','Follow-up','Won','Lost'];
+  let db = load();
+  let filter = 'All';
+  let openSheet = null;
+
+  // ---------- storage ----------
+  function load(){
+    try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d && Array.isArray(d.customers)) return d; }catch(e){}
+    return {customers:[]};
+  }
+  function save(){
+    try{ localStorage.setItem(KEY, JSON.stringify(db)); }
+    catch(e){ toast('Save failed — storage full?'); }
+  }
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  const today = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmtDate = s => { if(!s) return ''; const [y,m,d]=s.split('-'); return `${d}-${m}-${y}`; };
+  const money = n => n ? '₹' + Number(n).toLocaleString('en-IN') : '';
+  const digits = p => String(p||'').replace(/\D/g,'');
+  const waNumber = p => { let d = digits(p); if(d.length===10) d = '91'+d; return d; };
+  const $ = s => document.querySelector(s);
+
+  function toast(msg){
+    const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1800);
+  }
+
+  // ---------- sheets ----------
+  function open(id){ close(); openSheet=id; $('#'+id).classList.add('open'); $('#sheetBg').classList.add('open'); }
+  function close(){ if(!openSheet) return; $('#'+openSheet).classList.remove('open'); $('#sheetBg').classList.remove('open'); openSheet=null; }
+  $('#sheetBg').onclick = close;
+  document.addEventListener('click', e => { if(e.target.matches('[data-close]')) close(); });
+
+  // Android back button closes the sheet first, then exits
+  try{
+    const App = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+    if(App) App.addListener('backButton', () => { if(openSheet) close(); else App.exitApp(); });
+  }catch(e){}
+
+  // ---------- render ----------
+  function render(){
+    const c = db.customers, t = today();
+    const due = c.filter(x => x.followup && x.followup <= t && !['Won','Lost'].includes(x.status));
+    const won = c.filter(x => x.status==='Won');
+    const wonValue = won.reduce((s,x)=>s+(Number(x.value)||0),0);
+
+    $('#stats').innerHTML = `
+      <div class="stat"><b>${c.length}</b><span>Customers</span></div>
+      <div class="stat"><b style="color:var(--fol)">${due.length}</b><span>Follow-ups due</span></div>
+      <div class="stat"><b style="color:var(--won)">${won.length}</b><span>Won ${wonValue?'· '+money(wonValue):''}</span></div>`;
+
+    $('#todayWrap').innerHTML = due.length
+      ? `<div class="section-title">Today's follow-ups</div>` + due.sort((a,b)=>a.followup.localeCompare(b.followup)).map(card).join('')
+      : '';
+
+    $('#filters').innerHTML = ['All',...STATUSES].map(s=>{
+      const n = s==='All'?c.length:c.filter(x=>x.status===s).length;
+      return `<button class="chip ${filter===s?'on':''}" data-f="${s}">${s} (${n})</button>`;
+    }).join('');
+
+    const q = $('#q').value.trim().toLowerCase();
+    const list = c.filter(x => (filter==='All'||x.status===filter) &&
+      (!q || [x.name,x.phone,x.company,x.city].join(' ').toLowerCase().includes(q)))
+      .sort((a,b)=>(b.updated||0)-(a.updated||0));
+
+    $('#list').innerHTML = list.length ? list.map(card).join('')
+      : `<div class="empty">${c.length?'No match found':'No customers yet.<br>Tap <b>+</b> to add your first customer.'}</div>`;
+  }
+
+  function card(x){
+    const t=today(), late = x.followup && x.followup<=t && !['Won','Lost'].includes(x.status);
+    return `<div class="card" data-open="${x.id}">
+      <div class="row"><div class="name">${esc(x.name)}</div><span class="badge b-${x.status}">${x.status}</span></div>
+      <div class="sub">${esc(x.phone)}${x.company?' · '+esc(x.company):''}${x.city?' · '+esc(x.city):''}</div>
+      ${x.followup?`<div class="sub ${late?'due':''}">Follow-up: ${fmtDate(x.followup)}</div>`:''}
+      <div class="actions">
+        <a class="btn call" href="tel:${digits(x.phone)}" data-stop>Call</a>
+        <a class="btn wa" href="https://wa.me/${waNumber(x.phone)}" data-stop>WhatsApp</a>
+      </div>
+    </div>`;
+  }
+
+  // ---------- events ----------
+  $('#q').oninput = render;
+  $('#filters').onclick = e => { const f=e.target.dataset.f; if(f){ filter=f; render(); } };
+  document.addEventListener('click', e => {
+    if(e.target.closest('[data-stop]')) return;
+    const c = e.target.closest('[data-open]'); if(c) showDetail(c.dataset.open);
+  });
+
+  // ---------- form ----------
+  const form = $('#custForm');
+  form.status.innerHTML = STATUSES.map(s=>`<option>${s}</option>`).join('');
+
+  function showForm(x){
+    form.reset();
+    $('#formTitle').textContent = x ? 'Edit customer' : 'Add customer';
+    const d = x || {status:'New', source:'Walk-in'};
+    ['id','name','phone','company','city','status','source','followup','value','requirement'].forEach(k => form[k].value = d[k] ?? '');
+    open('formSheet');
+    if(!x) setTimeout(()=>form.name.focus(),150);
+  }
+  $('#addBtn').onclick = () => showForm(null);
+
+  form.onsubmit = e => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(form).entries());
+    f.name=f.name.trim(); f.phone=f.phone.trim();
+    if(!f.name || !f.phone) return toast('Name and phone are required');
+    const dup = db.customers.find(x => digits(x.phone)===digits(f.phone) && x.id!==f.id);
+    if(dup && !confirm(`${dup.name} already has this number. Save anyway?`)) return;
+    if(f.id){
+      const x = db.customers.find(x=>x.id===f.id);
+      if(x.status!==f.status) (x.notes ||= []).unshift({t:Date.now(), text:`Status changed: ${x.status} → ${f.status}`});
+      Object.assign(x, f, {updated:Date.now()});
+    }else{
+      db.customers.push({...f, id:uid(), created:Date.now(), updated:Date.now(), notes:[]});
+    }
+    save(); close(); render(); toast('Saved');
+  };
+
+  // ---------- detail ----------
+  function showDetail(id){
+    const x = db.customers.find(c=>c.id===id); if(!x) return;
+    const notes = (x.notes||[]).map(n=>`<div class="note"><small>${new Date(n.t).toLocaleString('en-IN')}</small>${esc(n.text)}</div>`).join('') || '<div class="sub">No notes yet</div>';
+    const el = $('#detailSheet');
+    el.innerHTML = `
+      <div class="row"><h2>${esc(x.name)}</h2><span class="badge b-${x.status}">${x.status}</span></div>
+      <div class="card">
+        <div class="sub">Phone: <b>${esc(x.phone)}</b></div>
+        ${x.company?`<div class="sub">Company: ${esc(x.company)}</div>`:''}
+        ${x.city?`<div class="sub">City: ${esc(x.city)}</div>`:''}
+        <div class="sub">Source: ${esc(x.source)}</div>
+        ${x.value?`<div class="sub">Deal value: ${money(x.value)}</div>`:''}
+        ${x.followup?`<div class="sub">Follow-up: ${fmtDate(x.followup)}</div>`:''}
+        ${x.requirement?`<div class="sub" style="margin-top:6px;white-space:pre-wrap">${esc(x.requirement)}</div>`:''}
+        <div class="actions">
+          <a class="btn call" href="tel:${digits(x.phone)}">Call</a>
+          <a class="btn wa" href="https://wa.me/${waNumber(x.phone)}">WhatsApp</a>
+        </div>
+      </div>
+
+      <label>Quick status</label>
+      <div class="chips" id="qs">${STATUSES.map(s=>`<button class="chip ${x.status===s?'on':''}" data-s="${s}">${s}</button>`).join('')}</div>
+
+      <label>Next follow-up</label>
+      <div class="search"><input type="date" id="nf" value="${x.followup||''}"><button class="btn ghost" style="flex:0 0 auto" id="nfSave">Set</button></div>
+
+      <label>Add note (call summary, visit, quote...)</label>
+      <textarea id="noteText"></textarea>
+      <div class="actions"><button class="btn primary" id="noteAdd">Add note</button></div>
+
+      <div class="section-title">History</div>
+      ${notes}
+
+      <div class="actions" style="margin-top:14px">
+        <button class="btn ghost" id="editBtn">Edit</button>
+        <button class="btn danger" id="delBtn">Delete</button>
+      </div>`;
+    open('detailSheet');
+
+    const touch = msg => { if(msg) (x.notes ||= []).unshift({t:Date.now(), text:msg}); x.updated=Date.now(); save(); render(); showDetail(x.id); };
+    el.querySelector('#qs').onclick = e => { const s=e.target.dataset.s; if(s && s!==x.status){ const old=x.status; x.status=s; touch(`Status changed: ${old} → ${s}`); toast('Status updated'); } };
+    el.querySelector('#nfSave').onclick = () => { x.followup = el.querySelector('#nf').value; touch(x.followup?`Follow-up set for ${fmtDate(x.followup)}`:'Follow-up cleared'); toast('Follow-up updated'); };
+    el.querySelector('#noteAdd').onclick = () => { const t=el.querySelector('#noteText').value.trim(); if(!t) return; touch(t); toast('Note added'); };
+    el.querySelector('#editBtn').onclick = () => showForm(x);
+    el.querySelector('#delBtn').onclick = () => {
+      if(!confirm(`Delete ${x.name}? This cannot be undone.`)) return;
+      db.customers = db.customers.filter(c=>c.id!==x.id); save(); close(); render(); toast('Deleted');
+    };
+  }
+
+  // ---------- backup ----------
+  async function copy(text){
+    try{ await navigator.clipboard.writeText(text); return true; }
+    catch(e){
+      const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select();
+      let ok=false; try{ ok=document.execCommand('copy'); }catch(_){}
+      ta.remove(); return ok;
+    }
+  }
+  $('#backupBtn').onclick = () => { $('#restoreText').value=''; open('backupSheet'); };
+  $('#copyBackup').onclick = async () => {
+    const ok = await copy(JSON.stringify({app:'simplecrm',version:1,exported:new Date().toISOString(),customers:db.customers}));
+    toast(ok ? `Backup copied (${db.customers.length} customers)` : 'Copy failed');
+  };
+  $('#copyCsv').onclick = async () => {
+    const cols=['name','phone','company','city','status','source','followup','value','requirement'];
+    const q = v => `"${String(v??'').replace(/"/g,'""')}"`;
+    const csv = [cols.join(','), ...db.customers.map(x=>cols.map(k=>q(x[k])).join(','))].join('\n');
+    toast(await copy(csv) ? 'CSV copied — paste into Excel/Sheets' : 'Copy failed');
+  };
+  $('#restoreBtn').onclick = () => {
+    let d; try{ d = JSON.parse($('#restoreText').value); }catch(e){ return toast('Invalid backup text'); }
+    if(!d || !Array.isArray(d.customers)) return toast('Invalid backup text');
+    if(!confirm(`Replace current data with ${d.customers.length} customers from backup?`)) return;
+    db = {customers:d.customers}; save(); close(); render(); toast('Restored');
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>
